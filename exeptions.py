@@ -14,4 +14,7 @@ class InvalidCredentialsError(Exception):
     """Raised for login attempts with wrong username or password."""
     pass
 
+class InvalidBirthDateError(Exception):
+    """Raised when a birthdate is invalid."""
+    pass
 
