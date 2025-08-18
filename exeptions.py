@@ -18,3 +18,19 @@ class InvalidBirthDateError(Exception):
     """Raised when a birthdate is invalid."""
     pass
 
+class InvalidCvv2Error(Exception):
+    """Raised when CVV2 is invalid."""
+    pass
+
+class NegativeAmountError(Exception):
+    """Raised when Amount is negative."""
+    pass
+
+class InvalidAccountNumberError(Exception):
+    """Raised when account number is invalid."""
+    pass
+
+class NotEnoughAmountError(Exception):
+    """Raised when Amount is not enough."""
+    pass
+
