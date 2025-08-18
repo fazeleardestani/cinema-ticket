@@ -77,6 +77,7 @@ class User:
 
     @staticmethod
     def _validate_birth_date(birth_date:str):
+
         birth_date_pattern = r"^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])$"
         if not re.fullmatch(birth_date_pattern , birth_date) or birth_date is None:
             log.warning("Validation failed for birth date: '{}'. Format should be YYYY-M-D or YYYY-MM-DD.".format(birth_date))
