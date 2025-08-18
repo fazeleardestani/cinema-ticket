@@ -5,21 +5,25 @@ It includes functionalities for creating, validating, and managing user accounts
 as part of the user management system.
 """
 from __future__ import annotations
-import inspect
+from custom_log import logger as log
+from models.bank import BankAccount as bank
+
+from exeptions import InvalidPasswordError, InvalidBirthDateError, UsernameExistsError, PasswordsDoesNotMatchError, \
+    InvalidCredentialsError, InvalidAccountNumberError
+
+from utils import data_load , data_dump , hash_password
 from datetime import datetime
 from uuid import uuid4
-import hashlib
+
+import inspect
 import re
-from custom_log import logger as log
-from exeptions import InvalidPasswordError, InvalidBirthDateError, UsernameExistsError, PasswordsDoesNotMatchError, \
-    InvalidCredentialsError
-from utils import data_load , data_dump
+
+
+
+
 
 FILE_PATH = 'data/user.json'
 
-def _hash_password(password: str) -> str:
-    """Hashes the password using SHA-256."""
-    return hashlib.sha256(password.encode('utf8')).hexdigest()
 
 def unique_username(func):
     """Decorator to ensure the username is not already taken."""
@@ -40,16 +44,17 @@ def unique_username(func):
 class User:
     """A class to represent and manage users."""
 
-    users = data_load(FILE_PATH) or []
+    users = data_load(FILE_PATH) or {}
 
     def __init__(self , username:str ,password:str, birth_date:str, phone_number:str = None)->None:
         """Initializes a new user instance."""
         self.uid = str(uuid4())
         self.username = username
         self.phone_number = phone_number
-        self._password = _hash_password(password)
+        self._password = hash_password(password)
         self.birth_date = birth_date
         self.__created_at = datetime.now()
+        self.bank_accounts = set()
         self.is_hashed = True
 
     @staticmethod
@@ -72,9 +77,8 @@ class User:
 
     @staticmethod
     def _validate_birth_date(birth_date:str):
-        print(birth_date)
-        birth_date_pattern = r"\b\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b"
-        if re.fullmatch(birth_date , birth_date_pattern):
+        birth_date_pattern = r"^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])$"
+        if not re.fullmatch(birth_date_pattern , birth_date) or birth_date is None:
             log.warning("Validation failed for birth date: '{}'. Format should be YYYY-M-D or YYYY-MM-DD.".format(birth_date))
             raise InvalidBirthDateError
         return True
@@ -92,16 +96,16 @@ class User:
         }
 
     @classmethod
-    def from_dict(cls, data:dict):
+    def from_dict(cls , user_dict:dict):
         """ creates a new user instance from a dictionary(user lists)"""
         user_instance = cls.__new__(cls)
-        user_instance.uid = data['uid']
-        user_instance.username = data['username']
-        user_instance._password = data['password']
-        user_instance.birth_date = data['birth_date']
-        user_instance.phone_number = data['phone_number']
-        user_instance.__created_at = datetime.fromisoformat(data['created_at'])
-        user_instance.is_hashed = data['is_hashed']
+        user_instance.uid = user_dict['uid']
+        user_instance.username = user_dict['username']
+        user_instance._password = user_dict['password']
+        user_instance.birth_date = user_dict['birth_date']
+        user_instance.phone_number = user_dict['phone_number']
+        user_instance.__created_at = datetime.fromisoformat(user_dict['created_at'])
+        user_instance.is_hashed = user_dict['is_hashed']
         return user_instance
 
     @classmethod
@@ -130,7 +134,7 @@ class User:
         """ user login function. """
         found_user = None
         for user in cls.users:
-            if user['username'] == username and user['password'] == _hash_password(password):
+            if user['username'] == username and user['password'] == hash_password(password):
                 found_user = cls.from_dict(data=user)
                 return found_user
 
@@ -161,17 +165,36 @@ class User:
 
     def update_password(self, old_password: str, new_password: str, confirm_password: str) -> bool | None:
         """updates a user's password."""
-        if self._password != _hash_password(old_password):
+        if self._password != hash_password(old_password):
             log.warning('Old password does not match.')
             raise PasswordsDoesNotMatchError
 
         self._validate_password_length(new_password)
         self._validate_password_confirmation(new_password, confirm_password)
 
-        self._password = _hash_password(new_password)
+        self._password = hash_password(new_password)
         self.update_user(self)
         log.info('Password updated.')
         return True
+
+    def creat_bank_account(self , bank_account_password:str):
+        bank_account = bank.create_account(self.uid , bank_account_password)
+        self.bank_accounts.add(bank_account)
+        return bank_account
+
+    def deposit_to_bank_account(self , account_number:str , amount:int):
+        for bank_account in self.bank_accounts:
+            if bank_account.__account_number == account_number:
+                return bank_account.deposit(amount)
+
+    def withdraw_from_bank_account(self , account_number:str , account_password:str , account_cvv2:str ,  amount:int):
+        for bank_account in self.bank_accounts:
+            if bank_account.__account_number == account_number:
+                return bank_account.withdraw(amount , account_password , account_cvv2)
+
+
+
+
 
     def __str__(self):
         """Returns a user-friendly string representation of the user."""
