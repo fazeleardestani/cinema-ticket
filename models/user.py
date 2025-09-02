@@ -5,25 +5,28 @@ It includes functionalities for creating, validating, and managing user accounts
 as part of the user management system.
 """
 from __future__ import annotations
+
+from enum import Enum
+
 from custom_log import logger as log
-from models.bank import BankAccount as bank
+from models.bank import BankAccount as Bank
 
 from exeptions import InvalidPasswordError, InvalidBirthDateError, UsernameExistsError, PasswordsDoesNotMatchError, \
-    InvalidCredentialsError, InvalidAccountNumberError
+    InvalidCredentialsError, InvalidAccountNumberError, InvalidChoiceError, InsufficientFundsError
 
 from utils import data_load , data_dump , hash_password
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 import inspect
 import re
 
-
-
-
-
 FILE_PATH = 'data/user.json'
-
+SUBSCRIPTION_DICT = {
+    'bronze': 0,
+    'silver': 20,
+    'gold': 30,
+}
 
 def unique_username(func):
     """Decorator to ensure the username is not already taken."""
@@ -41,24 +44,35 @@ def unique_username(func):
         return func(*args, **kwargs)
     return wrapper
 
+class UserRole(Enum):
+    USER = 'user'
+    ADMIN = 'admin'
+
 class User:
     """A class to represent and manage users."""
 
-    users = data_load(FILE_PATH) or {}
+    users = data_load(FILE_PATH) or []
 
-    def __init__(self , username:str ,password:str, birth_date:str, phone_number:str = None)->None:
+    def __init__(self , username:str ,password:str, birth_date:str, phone_number:str = None, role = UserRole.USER)->None:
         """Initializes a new user instance."""
+        self.role = role
         self.uid = str(uuid4())
         self.username = username
         self.phone_number = phone_number
         self._password = hash_password(password)
         self.birth_date = birth_date
+        self.bank_accounts = []
+        self.wallet_balance = 0
+        self.subscription = 'bronze'
+        self.cashback_count = 0
+        self.cashback_date = datetime.now()
+        self.cashback_percent = 0
+        self.gift = None
         self.__created_at = datetime.now()
-        self.bank_accounts = set()
         self.is_hashed = True
 
     @staticmethod
-    def _validate_password_length(password):
+    def _validate_password_length(password:str):
         """Validates if the password meets the minimum length requirement.
         Raises InvalidPasswordError if the length is insufficient."""
         if len(password) < 4:
@@ -67,7 +81,7 @@ class User:
         return True
 
     @staticmethod
-    def _validate_password_confirmation(new_password , confirm_password):
+    def _validate_password_confirmation(new_password:str , confirm_password:str):
         """Validates if the new password matches its confirmation.
            Raises PasswordsDoesNotMatchError if they don't match."""
         if new_password != confirm_password:
@@ -87,11 +101,19 @@ class User:
     def to_dict(self):
         """turn user object to dictionary."""
         return {
+            'role': self.role,
             'uid': self.uid,
             'username': self.username,
             'phone_number': self.phone_number,
             'password': self._password,
             'birth_date': self.birth_date,
+            'bank_accounts' : self.bank_accounts,
+            'wallet_balance': self.wallet_balance,
+            'subscription' : self.subscription,
+            'cashback_count' : self.cashback_count,
+            'cashback_date' : self.cashback_date.isoformat(),
+            'cashback_percent' : self.cashback_percent,
+            'gift' : self.gift,
             'created_at': self.__created_at.isoformat(),
             'is_hashed': self.is_hashed
         }
@@ -100,11 +122,19 @@ class User:
     def from_dict(cls , user_dict:dict):
         """ creates a new user instance from a dictionary(user lists)"""
         user_instance = cls.__new__(cls)
+        user_instance.role = user_dict['role']
         user_instance.uid = user_dict['uid']
         user_instance.username = user_dict['username']
         user_instance._password = user_dict['password']
         user_instance.birth_date = user_dict['birth_date']
         user_instance.phone_number = user_dict['phone_number']
+        user_instance.bank_accounts = [Bank.from_dict(account) for account in user_dict['bank_accounts']]
+        user_instance.wallet_balance = user_dict['wallet_balance']
+        user_instance.subscription = user_dict['subscription']
+        user_instance.cashback_count = user_dict['cashback_count']
+        user_instance.cashback_date = datetime.fromisoformat(user_dict['cashback_date'])
+        user_instance.cashback_percent = user_dict['cashback_percent']
+        user_instance.gift = user_dict['gift']
         user_instance.__created_at = datetime.fromisoformat(user_dict['created_at'])
         user_instance.is_hashed = user_dict['is_hashed']
         return user_instance
@@ -118,6 +148,14 @@ class User:
                 user['password'] = self_user._password
                 user['birth_date'] = self_user.birth_date
                 user['phone_number'] = self_user.phone_number
+                user['bank_accounts'] = [account.to_dict() for account in self_user.bank_accounts]
+                user['wallet_balance'] = self_user.wallet_balance
+                user['subscription'] = self_user.subscription
+                user['cashback_count'] = self_user.cashback_count
+                user['cashback_date'] = self_user.cashback_date.isoformat()
+                user['cashback_percent'] = self_user.cashback_percent
+                user['gift'] = self_user.gift
+
         data_dump(FILE_PATH, cls.users)
 
     @classmethod
@@ -136,7 +174,7 @@ class User:
         found_user = None
         for user in cls.users:
             if user['username'] == username and user['password'] == hash_password(password):
-                found_user = cls.from_dict(data=user)
+                found_user = cls.from_dict(user)
                 return found_user
 
         log.warning('User {} not found.'.format(username))
@@ -178,24 +216,62 @@ class User:
         log.info('Password updated.')
         return True
 
-    def creat_bank_account(self , bank_account_password:str):
-        bank_account = bank.create_account(self.uid , bank_account_password)
-        self.bank_accounts.add(bank_account)
+    def create_bank_account(self , bank_account_password:str):
+        """Creates a new bank account for the user."""
+        bank_account = Bank.create_account(self.uid, bank_account_password)
+        self.bank_accounts.append(bank_account)
+        self.update_user(self)
         return bank_account
 
+    def charge_wallet(self , amount:int , bank_account , account_password:str , account_cvv2:int):
+        """Charges the user's wallet by withdrawing from a bank account."""
+        bank_account.withdraw(amount , account_password , account_cvv2)
+        self.wallet_balance += amount
+        self.update_user(self)
+
     def deposit_to_bank_account(self , account_number:str , amount:int):
+        """Deposits a specified amount into one of the user's bank accounts."""
         for bank_account in self.bank_accounts:
             if bank_account.__account_number == account_number:
                 return bank_account.deposit(amount)
 
     def withdraw_from_bank_account(self , account_number:str , account_password:str , account_cvv2:str ,  amount:int):
+        """Withdraws a specified amount from one of the user's bank accounts."""
         for bank_account in self.bank_accounts:
             if bank_account.__account_number == account_number:
                 return bank_account.withdraw(amount , account_password , account_cvv2)
 
+    def change_subscription(self , subscription_number:str):
+        """Changes the user's subscription plan."""
 
+        if subscription_number == "1":
+            subscription_type = "silver"
+        elif subscription_number == "2":
+            subscription_type = "gold"
+        else:
+            log.warning('Invalid Subscription Number. Please enter number of your subscription')
+            raise InvalidChoiceError
+        if self.wallet_balance >= SUBSCRIPTION_DICT[subscription_type]:
 
+            self.wallet_balance -= SUBSCRIPTION_DICT[subscription_type]
+            self.subscription = subscription_type
+            if subscription_type == 'silver':
+                self.cashback_count = 3
+                self.cashback_percent = 20
 
+            if subscription_type == 'gold':
+                self.cashback_date = datetime.now() + timedelta(days=30)
+                self.cashback_percent = 50
+                self.gift = 'one free soda'
+
+            self.update_user(self)
+            return True
+
+        else:
+            log.warning(f'User {self.username} has insufficient funds to buy {subscription_type} subscription.')
+            raise InsufficientFundsError
+
+#TODO: complete def change subscription  and add the logic into main code, handle limit time and count and gift
 
     def __str__(self):
         """Returns a user-friendly string representation of the user."""
