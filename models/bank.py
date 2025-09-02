@@ -30,8 +30,12 @@ class BankAccount:
         self.cvv2 = random.randint(100, 9_999)
         self.balance = 0
 
+    def __str__(self):
+        """Returns a user-friendly string representation of the bank account."""
+        return f"Account Number: {self.__account_number} , Account Cvv2: {self.cvv2}"
+
     @staticmethod
-    def _validate_password_length(password):
+    def _validate_password_length(password:str):
         """Validates if the password meets standard length requirement.
         Raises InvalidPasswordError if the length is insufficient."""
         if len(password) != 4:
@@ -39,8 +43,7 @@ class BankAccount:
             raise InvalidPasswordError
         return True
 
-
-    def _security_check(self , password , cvv2):
+    def _security_check(self , password:str , cvv2:int):
         """Verifies the transaction password and CVV2."""
         if self.password != hash_password(password):
             log.warning('Password is incorrect.')
@@ -50,8 +53,6 @@ class BankAccount:
             raise InvalidCvv2Error
         else:
             return True
-
-
 
     def to_dict(self) -> dict:
         """Converts the bank account object to a dictionary."""
@@ -104,8 +105,7 @@ class BankAccount:
         log.info('balance updated')
 
 
-
-    def withdraw(self, amount:int , password:str , cvv2:str):
+    def withdraw(self, amount:int , password:str , cvv2:int):
         """Withdraws a specified amount after verifying credentials."""
         if self._security_check(password, cvv2):
             min_check = self.balance - amount
