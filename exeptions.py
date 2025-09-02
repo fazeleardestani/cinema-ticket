@@ -34,3 +34,15 @@ class NotEnoughAmountError(Exception):
     """Raised when Amount is not enough."""
     pass
 
+class InvalidChoiceError(Exception):
+    """Raised when choice is invalid."""
+    pass
+
+class InsufficientFundsError(Exception):
+    """Raised when insufficient funds are available."""
+    pass
+
+class InvalidAccess(Exception):
+    """Raised when access is invalid."""
+    pass
+
