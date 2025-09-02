@@ -7,11 +7,9 @@ to the User class for registration, login, and profile management.
 
 import os
 import getpass
-from exeptions import InvalidPasswordError
-# from models.bank import BankAccount
 from models.user import User
 
-def register_user():
+def register_user()->None:
     """Handles the user registration process by collecting user input."""
     os.system('cls')
 
@@ -35,7 +33,7 @@ def register_user():
     except Exception as e:
         print(e)
 
-def login_user():
+def login_user()->User:
     """Handles the user login process and returns the logged-in user object."""
     os.system('cls')
     print("---Login---")
@@ -46,7 +44,7 @@ def login_user():
     logged_in_user = User.login(username, password)
     return logged_in_user
 
-def edit_user_profile(logged_in_user):
+def edit_user_profile(logged_in_user:User)->None:
     """Allows a logged-in user to edit their profile information."""
     os.system('cls')
     print("--- Update your Profile ---")
@@ -67,7 +65,7 @@ def edit_user_profile(logged_in_user):
         if logged_in_user.update_birth_date(new_birth_date):
             print("Birthdate updated successfully.")
 
-def edit_user_password(logged_in_user):
+def edit_user_password(logged_in_user:User)->None:
     """Allows a logged-in user to change their password."""
     os.system('cls')
     print("--- Change Password ---")
@@ -77,6 +75,78 @@ def edit_user_password(logged_in_user):
     confirm_password = getpass.getpass("Confirm New Password: ")
 
     logged_in_user.update_password(old_password, new_password, confirm_password)
+
+def charge_wallet(logged_in_user:User)->None:
+    """Handles charging the user's wallet from a bank account."""
+    os.system('cls')
+    print("--- Charge Wallet ---")
+
+    amount = int(input("Amount: "))
+
+    if not logged_in_user.bank_accounts:
+        print(" You don't have any bank accounts.")
+        return
+
+    print("Your Bank Accounts:")
+    for i,bank_account in enumerate(logged_in_user.bank_accounts):
+        print(f'{i+1}- {bank_account}')
+
+    choice_str = input("Choose your account by number: ")
+    choice_index = int(choice_str)-1
+
+    bank_account =  logged_in_user.bank_accounts[choice_index]
+    password = getpass.getpass("Bank Password: ")
+    cvv2 = int(input("CVV2: "))
+
+    logged_in_user.charge_wallet(amount , bank_account , password, cvv2)
+
+def buy_subscription(logged_in_user:User)->None:
+    """Handles the subscription purchase process."""
+    os.system('cls')
+    print("--- Buy Subscription ---")
+
+    print(f"Your current wallet balance: {logged_in_user.wallet_balance}\n")
+
+    print("\t1- Silver (20 coin): 3 times 20% cashback | price:20")
+    print("\t2- Gold (30 coin): one month 50% cashback + one free soda | price: 30")
+    subscription_number = input("\tChoose subscription number (1 or 2): ")
+
+    if logged_in_user.change_subscription(subscription_number):
+        print("Subscription changed successfully.")
+        print(f"Your current wallet balance: {logged_in_user.wallet_balance}\n")
+
+def main_create_bank_account(logged_in_user:User)->None:
+    """Handles the creation of a new bank account for the user."""
+    os.system('cls')
+    print("--- Create Bank Account ---")
+    account_password = input("Bank Account Password: ")
+    bank_account = logged_in_user.create_bank_account(account_password)
+    print("Account created successfully.")
+    print(bank_account)
+
+def main_deposit_bank_account(logged_in_user:User)->None:
+    """Handles the depositing of a bank account for the user."""
+    os.system('cls')
+    print("--- Deposit Bank Account ---")
+
+    if not logged_in_user.bank_accounts:
+        print(" You don't have any bank accounts.")
+        return
+
+    print("Your Bank Accounts:")
+    for i, bank_account in enumerate(logged_in_user.bank_accounts):
+        print(f'{i + 1}- {bank_account}')
+
+    choice_str = input("Choose your account by number: ")
+    choice_index = int(choice_str) - 1
+
+    bank_account = logged_in_user.bank_accounts[choice_index]
+    amount = int(input("Amount: "))
+    bank_account.deposit(amount)
+    print("Bank account deposited successfully.")
+
+
+
 
 
 def main():
@@ -115,7 +185,11 @@ def main():
                         print("  1.Show Information")
                         print("  2.Edit Profile")
                         print("  3.Change Password")
-                        print("  4.Logout") #back to main menu
+                        print("  4.Create BankAccount")
+                        print("  5.Deposit BankAccount")
+                        print("  6.Charge Wallet")
+                        print("  7.Buy Subscription")
+                        print("  0.Logout") #back to main menu
 
                         try:
                             profile_choice = int(input("Enter your choice number: "))
@@ -137,6 +211,35 @@ def main():
                                     print(e)
 
                             elif profile_choice ==4:
+                                try:
+                                    main_create_bank_account(logged_in_user)
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice ==5:
+                                try:
+                                    main_deposit_bank_account(logged_in_user)
+                                except ValueError:
+                                    print("Invalid amount or choice. Please enter numbers only.")
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice ==6:
+                                try:
+                                    charge_wallet(logged_in_user)
+
+                                except ValueError:
+                                    print("Invalid amount or choice. Please enter numbers only.")
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice ==7:
+                                try:
+                                    buy_subscription(logged_in_user)
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice ==0:
                                 os.system('cls')
                                 logged_in_user = None
                                 break
@@ -152,8 +255,6 @@ def main():
         except ValueError:
 
             print("Invalid choice, please try again.")
-
-
 
 
 if __name__ == '__main__':
