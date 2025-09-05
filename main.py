@@ -7,6 +7,8 @@ to the User class for registration, login, and profile management.
 
 import os
 import getpass
+
+from models.cinema import Showing
 from models.user import User
 
 def register_user()->None:
@@ -145,7 +147,34 @@ def main_deposit_bank_account(logged_in_user:User)->None:
     bank_account.deposit(amount)
     print("Bank account deposited successfully.")
 
+def show_list_of_showings(logged_in_user:User):
+    """ show list of available showings for user"""
+    os.system('cls')
+    print("--- Show list of showings ---")
 
+    showing_list = Showing.get_active_showings()
+    available_showing = []
+    for i,show in enumerate(showing_list):
+
+        if logged_in_user.get_age() > show['age_group']:
+            print(f'{i+1}- Movie: {show['name']}, Show Capacity: {show['showing_capacity']},Time: {show['time']}, Age Group:{show['age_group']} , Ticket Price:{show['price']}')
+            available_showing.append(show)
+    return available_showing
+
+
+def main_book_ticket(logged_in_user:User):
+
+    available_showing = show_list_of_showings(logged_in_user)
+    for i,show in enumerate(available_showing):
+        print(f"{i+1}- {show}")
+
+    print("--- Booking Ticket ---")
+
+    choice_str = input("Choose your showing by number: ")
+    choice_index = int(choice_str) - 1
+    print("Please wait , checking your wallet balance...")
+    logged_in_user.book_ticket(available_showing[choice_index])
+    print("Your book ticket has been booked successfully. Enjoy the Movie.")
 
 
 
@@ -189,6 +218,9 @@ def main():
                         print("  5.Deposit BankAccount")
                         print("  6.Charge Wallet")
                         print("  7.Buy Subscription")
+                        print("  8.Available Showing")
+                        print("  9.Book Show Ticket")
+                        print("  10.Book Show Ticket")
                         print("  0.Logout") #back to main menu
 
                         try:
@@ -236,6 +268,25 @@ def main():
                             elif profile_choice ==7:
                                 try:
                                     buy_subscription(logged_in_user)
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice ==8:
+                                try:
+                                    show_list_of_showings()
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice == 9:
+                                try:
+                                    show_list_of_showings(logged_in_user)
+                                except Exception as e:
+                                    print(e)
+
+                            elif profile_choice == 10:
+                                try:
+                                    main_book_ticket(logged_in_user)
+
                                 except Exception as e:
                                     print(e)
 
