@@ -25,14 +25,14 @@ class BankAccount:
     def __init__(self, owner_uid: str, password: str, account_number: str):
         """Initializes a new bank account instance."""
         self.owner_uid = owner_uid
-        self.__account_number = account_number
+        self.account_number = account_number
         self.password = hash_password(password)
         self.cvv2 = random.randint(100, 9_999)
         self.balance = 0
 
     def __str__(self):
         """Returns a user-friendly string representation of the bank account."""
-        return f"Account Number: {self.__account_number} , Account Cvv2: {self.cvv2}"
+        return f"Account Number: {self.account_number} , Account Cvv2: {self.cvv2}"
 
     @staticmethod
     def _validate_password_length(password:str):
@@ -58,7 +58,7 @@ class BankAccount:
         """Converts the bank account object to a dictionary."""
         return {
             'owner_uid': self.owner_uid,
-            'account_number': self.__account_number,
+            'account_number': self.account_number,
             'password': self.password,
             'cvv2': self.cvv2,
             'balance': self.balance,
@@ -69,7 +69,7 @@ class BankAccount:
         """Creates a new bank account instance from a dictionary."""
         account_instance = cls.__new__(cls)
         account_instance.owner_uid = account_dict['owner_uid']
-        account_instance.__account_number = account_dict['account_number']
+        account_instance.account_number = account_dict['account_number']
         account_instance.password = account_dict['password']
         account_instance.cvv2 = account_dict['cvv2']
         account_instance.balance = account_dict['balance']
@@ -79,7 +79,7 @@ class BankAccount:
     def update_account(cls, self_account):
         """Updates a bank account's information in the accounts list file."""
         for account in cls.accounts:
-            if account['account_number'] == self_account.__account_number:
+            if account['account_number'] == self_account.account_number:
                 account['balance'] = self_account.balance
 
         data_dump(FILE_PATH, cls.accounts)
@@ -118,9 +118,26 @@ class BankAccount:
                 raise NotEnoughAmountError
 
 
-    def transfer(self):
+    def transfer(self , amount:int , password:str , cvv2:int , destination_account_number:str):
         """Transfers funds from this account to another."""
-        pass
+        try:
+            self.withdraw(amount, password, cvv2)
+        except NotEnoughAmountError:
+            print('Insufficient funds to transfer.')
+
+        destination_account = None
+        for account in self.accounts:
+            if account['account_number'] == destination_account_number:
+                destination_account = BankAccount.from_dict(account)
+                break
+        if destination_account is None:
+            self.deposit(amount)
+            log.warning('Transfer failed. Destination account does not exist.')
+            raise InvalidAccountNumberError
+
+
+        destination_account.deposit(amount)
+        log.info(f"Successfully transferred {amount} to {destination_account}")
 
 
 
