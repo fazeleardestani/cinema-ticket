@@ -80,9 +80,9 @@ python scripts/main.py
 **۳. اجرای اسکریپت مدیریت:**
 مدیران برای مدیریت سانس‌ها (مثلاً تعریف سانس جدید) باید از اسکریپت مربوط به مدیر استفاده کنند.
 ```bash
-python scripts/manager_cli.py <command> [options]
+python scripts/manager.py <command> [options]
 ```
 > **مثال برای تعریف سانس جدید:**
 > ```bash
-> python scripts/manager_cli.py create --movie-title "Inception" --time "2025-08-15 22:00" --capacity 100 --age-rating 17
+> python scripts/manager.py create --movie-title "Inception" --time "2025-08-15 22:00" --capacity 100 --age-rating 17 --price 20
 > 
