@@ -7,19 +7,17 @@ as part of the user management system.
 from __future__ import annotations
 
 from enum import Enum
+from uuid import uuid4
+import inspect
+import jdatetime
 
 from custom_log import logger as log
 from models.bank import BankAccount as Bank
-
-from exeptions import InvalidPasswordError, InvalidBirthDateError, UsernameExistsError, PasswordsDoesNotMatchError, \
+from exeptions import InvalidPasswordError, InvalidDateError, UsernameExistsError, PasswordsDoesNotMatchError, \
     InvalidCredentialsError, InvalidAccountNumberError, InvalidChoiceError, InsufficientFundsError
-
-from utils import data_load , data_dump , hash_password
-from datetime import datetime, timedelta
-from uuid import uuid4
-
-import inspect
-import re
+from models.cinema import Showing
+from utils import data_load, data_dump, hash_password, str_to_datetime, calculate_time_span, apply_discount, \
+    str_to_showimg_datetime
 
 FILE_PATH = 'data/user.json'
 SUBSCRIPTION_DICT = {
@@ -65,10 +63,10 @@ class User:
         self.wallet_balance = 0
         self.subscription = 'bronze'
         self.cashback_count = 0
-        self.cashback_date = datetime.now()
+        self.cashback_date = jdatetime.datetime.now()
         self.cashback_percent = 0
         self.gift = None
-        self.__created_at = datetime.now()
+        self.__created_at = jdatetime.datetime.now()
         self.is_hashed = True
 
     @staticmethod
@@ -89,19 +87,34 @@ class User:
             raise PasswordsDoesNotMatchError
         return True
 
-    @staticmethod
-    def _validate_birth_date(birth_date:str):
+    def get_age(self)->int:
+        birth_date = str_to_datetime(self.birth_date)
+        now = jdatetime.datetime.now()
+        age = calculate_time_span(birth_date , now).days // 365
+        return int(age)
 
-        birth_date_pattern = r"^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])$"
-        if not re.fullmatch(birth_date_pattern , birth_date) or birth_date is None:
-            log.warning("Validation failed for birth date: '{}'. Format should be YYYY-M-D or YYYY-MM-DD.".format(birth_date))
-            raise InvalidBirthDateError
-        return True
+    def get_remaining_subscription_days(self)->int:
+        if self.subscription != 'gold':
+            return 0
+        now = jdatetime.datetime.now()
+
+        if self.cashback_date > now:
+            time_span = calculate_time_span(now , self.cashback_date)
+            return time_span.days
+        else:
+            return 0
+
+    def get_membership_months(self)->int:
+
+        now = jdatetime.datetime.now()
+
+        time_span = calculate_time_span(self.__created_at , now)
+        return int(time_span.days // 30)
 
     def to_dict(self):
         """turn user object to dictionary."""
         return {
-            'role': self.role,
+            'role': self.role.value,
             'uid': self.uid,
             'username': self.username,
             'phone_number': self.phone_number,
@@ -122,7 +135,7 @@ class User:
     def from_dict(cls , user_dict:dict):
         """ creates a new user instance from a dictionary(user lists)"""
         user_instance = cls.__new__(cls)
-        user_instance.role = user_dict['role']
+        user_instance.role = UserRole(user_dict['role'])
         user_instance.uid = user_dict['uid']
         user_instance.username = user_dict['username']
         user_instance._password = user_dict['password']
@@ -132,11 +145,14 @@ class User:
         user_instance.wallet_balance = user_dict['wallet_balance']
         user_instance.subscription = user_dict['subscription']
         user_instance.cashback_count = user_dict['cashback_count']
-        user_instance.cashback_date = datetime.fromisoformat(user_dict['cashback_date'])
         user_instance.cashback_percent = user_dict['cashback_percent']
         user_instance.gift = user_dict['gift']
-        user_instance.__created_at = datetime.fromisoformat(user_dict['created_at'])
         user_instance.is_hashed = user_dict['is_hashed']
+
+        iso_format = "%Y-%m-%dT%H:%M:%S.%f"
+        user_instance.cashback_date = jdatetime.datetime.strptime(user_dict['cashback_date'], iso_format)
+        user_instance.__created_at = jdatetime.datetime.strptime(user_dict['created_at'] , iso_format)
+
         return user_instance
 
     @classmethod
@@ -162,7 +178,7 @@ class User:
     @unique_username
     def register(cls , username:str , password:str , birth_date:str , phone_number:str = None) -> User:
         """ Registers a new user. """
-        if cls._validate_password_length(password) and cls._validate_birth_date(birth_date):
+        if cls._validate_password_length(password) and str_to_datetime(birth_date):
             user = cls(username, password, birth_date, phone_number)
             cls.users.append(user.to_dict())
             data_dump(FILE_PATH, cls.users)
@@ -197,7 +213,7 @@ class User:
 
     def update_birth_date(self, new_birth_date: str) -> bool:
         """Allows a logged-in user to updates a user's birthdate."""
-        if self._validate_birth_date(new_birth_date):
+        if str_to_datetime(new_birth_date):
             self.birth_date = new_birth_date
             self.update_user(self)
             return True
@@ -232,13 +248,13 @@ class User:
     def deposit_to_bank_account(self , account_number:str , amount:int):
         """Deposits a specified amount into one of the user's bank accounts."""
         for bank_account in self.bank_accounts:
-            if bank_account.__account_number == account_number:
+            if bank_account.account_number == account_number:
                 return bank_account.deposit(amount)
 
     def withdraw_from_bank_account(self , account_number:str , account_password:str , account_cvv2:str ,  amount:int):
         """Withdraws a specified amount from one of the user's bank accounts."""
         for bank_account in self.bank_accounts:
-            if bank_account.__account_number == account_number:
+            if bank_account.account_number == account_number:
                 return bank_account.withdraw(amount , account_password , account_cvv2)
 
     def change_subscription(self , subscription_number:str):
@@ -260,9 +276,9 @@ class User:
                 self.cashback_percent = 20
 
             if subscription_type == 'gold':
-                self.cashback_date = datetime.now() + timedelta(days=30)
+                self.cashback_date = jdatetime.datetime.now() + jdatetime.timedelta(days=30)
                 self.cashback_percent = 50
-                self.gift = 'one free soda'
+                self.gift = 'a free Soda'
 
             self.update_user(self)
             return True
@@ -271,7 +287,51 @@ class User:
             log.warning(f'User {self.username} has insufficient funds to buy {subscription_type} subscription.')
             raise InsufficientFundsError
 
-#TODO: complete def change subscription  and add the logic into main code, handle limit time and count and gift
+    def book_ticket(self , showing:Showing):
+        """Handles the entire ticket booking process for a user."""
+        birth_date_obj = str_to_datetime(self.birth_date)
+        showing_time_obj = str_to_showimg_datetime(showing.showing_time)
+        now_obj = jdatetime.datetime.now()
+
+        # ۲. بررسی شرط تولد به صورت صحیح و خوانا
+        is_birthday_on_showing_date = (birth_date_obj.month == showing_time_obj.month and
+                                       birth_date_obj.day == showing_time_obj.day)
+
+        is_birthday_on_reserve_date = (birth_date_obj.month == now_obj.month and
+                                       birth_date_obj.day == now_obj.day)
+
+        birth_date_check = is_birthday_on_showing_date or is_birthday_on_reserve_date
+
+        membership_months = self.get_membership_months()
+
+        birth_day_discount = 0
+        if birth_date_check:
+            birth_day_discount = 50
+
+        final_price = apply_discount(showing.price, membership_months + birth_day_discount)
+
+        if final_price > self.wallet_balance:
+            log.warning(f'User {self.username} has insufficient funds to buy {showing.movie_name} ticket.')
+            raise InsufficientFundsError
+
+        self.wallet_balance -= final_price
+        showing.reserved_seat.append(self.uid)
+
+        percent = lambda x : x/100
+        if self.subscription == 'silver' and self.cashback_count != 0:
+            self.wallet_balance += final_price * percent(self.cashback_percent)
+            self.cashback_count -=1
+            log.info(
+                     f"{self.cashback_percent}% of your purchase has been returned to your wallet as cashback.")
+            if self.cashback_count == 0:
+                self.subscription = 'bronze'
+        if self.subscription == 'gold' and self.cashback_date != jdatetime.datetime.now():
+            self.wallet_balance += final_price * percent(self.cashback_percent)
+            log.info(
+                     f"{self.cashback_percent}% of your purchase has been returned to your wallet as cashback, along with {self.gift} for the movie.")
+
+        self.update_user(self)
+        Showing.update_show(showing)
 
     def __str__(self):
         """Returns a user-friendly string representation of the user."""
