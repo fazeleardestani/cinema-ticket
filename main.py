@@ -11,7 +11,8 @@ import getpass
 from models.cinema import Showing
 from models.user import User
 
-def register_user()->None:
+
+def register_user() -> None:
     """Handles the user registration process by collecting user input."""
     os.system('cls')
 
@@ -22,7 +23,8 @@ def register_user()->None:
     print("(Your password must be at least 4 characters long.)")
     password = getpass.getpass()
 
-    phone_number = input("Phone number (optional - press Enter to skip): ") or None
+    phone_number = input(
+        "Phone number (optional - press Enter to skip): ") or None
 
     birth_date = input("Birth date(1999-2-14): ")
 
@@ -35,7 +37,8 @@ def register_user()->None:
     except Exception as e:
         print(e)
 
-def login_user()->User:
+
+def login_user() -> User:
     """Handles the user login process and returns the logged-in user object."""
     os.system('cls')
     print("---Login---")
@@ -46,7 +49,8 @@ def login_user()->User:
     logged_in_user = User.login(username, password)
     return logged_in_user
 
-def edit_user_profile(logged_in_user:User)->None:
+
+def edit_user_profile(logged_in_user: User) -> None:
     """Allows a logged-in user to edit their profile information."""
     os.system('cls')
     print("--- Update your Profile ---")
@@ -67,7 +71,8 @@ def edit_user_profile(logged_in_user:User)->None:
         if logged_in_user.update_birth_date(new_birth_date):
             print("Birthdate updated successfully.")
 
-def edit_user_password(logged_in_user:User)->None:
+
+def edit_user_password(logged_in_user: User) -> None:
     """Allows a logged-in user to change their password."""
     os.system('cls')
     print("--- Change Password ---")
@@ -76,9 +81,11 @@ def edit_user_password(logged_in_user:User)->None:
     new_password = getpass.getpass("New Password: ")
     confirm_password = getpass.getpass("Confirm New Password: ")
 
-    logged_in_user.update_password(old_password, new_password, confirm_password)
+    logged_in_user.update_password(
+        old_password, new_password, confirm_password)
 
-def charge_wallet(logged_in_user:User)->None:
+
+def charge_wallet(logged_in_user: User) -> None:
     """Handles charging the user's wallet from a bank account."""
     os.system('cls')
     print("--- Charge Wallet ---")
@@ -90,19 +97,20 @@ def charge_wallet(logged_in_user:User)->None:
         return
 
     print("Your Bank Accounts:")
-    for i,bank_account in enumerate(logged_in_user.bank_accounts):
+    for i, bank_account in enumerate(logged_in_user.bank_accounts):
         print(f'{i+1}- {bank_account}')
 
     choice_str = input("Choose your account by number: ")
     choice_index = int(choice_str)-1
 
-    bank_account =  logged_in_user.bank_accounts[choice_index]
+    bank_account = logged_in_user.bank_accounts[choice_index]
     password = getpass.getpass("Bank Password: ")
     cvv2 = int(input("CVV2: "))
 
-    logged_in_user.charge_wallet(amount , bank_account , password, cvv2)
+    logged_in_user.charge_wallet(amount, bank_account, password, cvv2)
 
-def buy_subscription(logged_in_user:User)->None:
+
+def buy_subscription(logged_in_user: User) -> None:
     """Handles the subscription purchase process."""
     os.system('cls')
     print("--- Buy Subscription ---")
@@ -115,9 +123,11 @@ def buy_subscription(logged_in_user:User)->None:
 
     if logged_in_user.change_subscription(subscription_number):
         print("Subscription changed successfully.")
-        print(f"Your current wallet balance: {logged_in_user.wallet_balance}\n")
+        print(
+            f"Your current wallet balance: {logged_in_user.wallet_balance}\n")
 
-def main_create_bank_account(logged_in_user:User)->None:
+
+def main_create_bank_account(logged_in_user: User) -> None:
     """Handles the creation of a new bank account for the user."""
     os.system('cls')
     print("--- Create Bank Account ---")
@@ -126,7 +136,8 @@ def main_create_bank_account(logged_in_user:User)->None:
     print("Account created successfully.")
     print(bank_account)
 
-def main_deposit_bank_account(logged_in_user:User)->None:
+
+def main_deposit_bank_account(logged_in_user: User) -> None:
     """Handles the depositing of a bank account for the user."""
     os.system('cls')
     print("--- Deposit Bank Account ---")
@@ -147,25 +158,27 @@ def main_deposit_bank_account(logged_in_user:User)->None:
     bank_account.deposit(amount)
     print("Bank account deposited successfully.")
 
-def show_list_of_showings(logged_in_user:User):
+
+def show_list_of_showings(logged_in_user: User):
     """ show list of available showings for user"""
     os.system('cls')
     print("--- Show list of showings ---")
 
     showing_list = Showing.get_active_showings()
     available_showing = []
-    for i,show in enumerate(showing_list):
+    for i, show in enumerate(showing_list):
 
         if logged_in_user.get_age() > show['age_group']:
-            print(f'{i+1}- Movie: {show['name']}, Show Capacity: {show['showing_capacity']},Time: {show['time']}, Age Group:{show['age_group']} , Ticket Price:{show['price']}')
+            print(
+                f'{i+1}- Movie: {show['name']}, Show Capacity: {show['showing_capacity']},Time: {show['time']}, Age Group:{show['age_group']} , Ticket Price:{show['price']}')
             available_showing.append(show)
     return available_showing
 
 
-def main_book_ticket(logged_in_user:User):
+def main_book_ticket(logged_in_user: User):
 
     available_showing = show_list_of_showings(logged_in_user)
-    for i,show in enumerate(available_showing):
+    for i, show in enumerate(available_showing):
         print(f"{i+1}- {show}")
 
     print("--- Booking Ticket ---")
@@ -175,7 +188,6 @@ def main_book_ticket(logged_in_user:User):
     print("Please wait , checking your wallet balance...")
     logged_in_user.book_ticket(available_showing[choice_index])
     print("Your book ticket has been booked successfully. Enjoy the Movie.")
-
 
 
 def main():
@@ -220,11 +232,11 @@ def main():
                         print("  7.Buy Subscription")
                         print("  8.Available Showing")
                         print("  9.Book Show Ticket")
-                        print("  10.Book Show Ticket")
-                        print("  0.Logout") #back to main menu
+                        print("  0.Logout")  # back to main menu
 
                         try:
-                            profile_choice = int(input("Enter your choice number: "))
+                            profile_choice = int(
+                                input("Enter your choice number: "))
 
                             if profile_choice == 1:
                                 os.system('cls')
@@ -236,66 +248,61 @@ def main():
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==3:
+                            elif profile_choice == 3:
                                 try:
                                     edit_user_password(logged_in_user)
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==4:
+                            elif profile_choice == 4:
                                 try:
                                     main_create_bank_account(logged_in_user)
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==5:
+                            elif profile_choice == 5:
                                 try:
                                     main_deposit_bank_account(logged_in_user)
                                 except ValueError:
-                                    print("Invalid amount or choice. Please enter numbers only.")
+                                    print(
+                                        "Invalid amount or choice. Please enter numbers only.")
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==6:
+                            elif profile_choice == 6:
                                 try:
                                     charge_wallet(logged_in_user)
 
                                 except ValueError:
-                                    print("Invalid amount or choice. Please enter numbers only.")
+                                    print(
+                                        "Invalid amount or choice. Please enter numbers only.")
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==7:
+                            elif profile_choice == 7:
                                 try:
                                     buy_subscription(logged_in_user)
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==8:
-                                try:
-                                    show_list_of_showings()
-                                except Exception as e:
-                                    print(e)
-
-                            elif profile_choice == 9:
+                            elif profile_choice == 8:
                                 try:
                                     show_list_of_showings(logged_in_user)
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice == 10:
+                            elif profile_choice == 9:
                                 try:
                                     main_book_ticket(logged_in_user)
-
                                 except Exception as e:
                                     print(e)
 
-                            elif profile_choice ==0:
+                            elif profile_choice == 0:
                                 os.system('cls')
                                 logged_in_user = None
                                 break
                         except ValueError as e:
-                            print("Invalid choice, please try again." , e)
+                            print("Invalid choice, please try again.", e)
                 else:
                     os.system('cls')
                     print("Login failed. Please check your credentials.")

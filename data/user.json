@@ -1,0 +1,27 @@
+[
+    {
+        "role": "user",
+        "uid": "62f9509c-0f2f-45b1-be4e-c979ff836cc5",
+        "username": "fz",
+        "phone_number": null,
+        "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+        "birth_date": "1404-06-14",
+        "bank_accounts": [
+            {
+                "owner_uid": "62f9509c-0f2f-45b1-be4e-c979ff836cc5",
+                "account_number": "59608621",
+                "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+                "cvv2": 2191,
+                "balance": 0
+            }
+        ],
+        "wallet_balance": 0,
+        "subscription": "bronze",
+        "cashback_count": 0,
+        "cashback_date": "1404-06-14T22:32:56.731855",
+        "cashback_percent": 0,
+        "gift": null,
+        "created_at": "1404-06-14T22:32:56.731855",
+        "is_hashed": true
+    }
+]
